@@ -115,14 +115,6 @@ Open Telegram, find your bot via its username (e.g. `@FZ_ChatBot`), and send a m
 
 ## **8. Processing Flow**
 
-```mermaid
-graph TD
-    A[User Message] --> B[Telegram Bot (app.js)]
-    B --> C[Gemini Model via @google/generative-ai]
-    C --> B
-    B --> D[Response to User]
-```
-
 1. **User sends a message** in Telegram.  
 2. **Bot receives** the message, forwards it to Gemini for generation.  
 3. **Gemini** returns a text response.  
