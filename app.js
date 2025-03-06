@@ -1,21 +1,9 @@
-// WhatsApp Gemini AI Chatbot (Free Version)
-// This project uses the following technologies:
-// 1. Node.js for the backend server
-// 2. Meta's WhatsApp Business Cloud API (free tier)
-// 3. Google's Gemini API (free tier)
-
-// Required packages
-// Run: npm install express dotenv axios @google/generative-ai
-
-// File: app.js
-const express = require('express');
+const TelegramBot = require('node-telegram-bot-api');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const axios = require('axios');
 require('dotenv').config();
 
-// Initialize Express app
-const app = express();
-app.use(express.json());
+// Initialize Telegram Bot with token
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -30,30 +18,36 @@ async function generateAIResponse(userMessage, userId) {
     if (!conversations[userId]) {
       conversations[userId] = [];
     }
+
+    // Create a conversation with Gemini
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    let response;
+
+    if (conversations[userId].length > 0) {
+      const chat = model.startChat({
+        history: conversations[userId],
+        generationConfig: {
+          maxOutputTokens: 800,
+        },
+      });
+      
+      // Generate response using chat session with history
+      const result = await chat.sendMessage(userMessage);
+      response = result.response;
+    } else {
+      // For the first message, generate content directly
+      const result = await model.generateContent(userMessage);
+      response = result.response;
+    }
     
-    // Add user message to history
-    conversations[userId].push({ role: 'user', parts: [userMessage] });
+    // Add this interaction to history 
+    conversations[userId].push({ role: 'user', content: userMessage });
+    conversations[userId].push({ role: 'model', content: response });
     
-    // Trim conversation history to the last 10 messages to avoid context length issues
+    // Trim conversation history if it gets too long
     if (conversations[userId].length > 10) {
       conversations[userId] = conversations[userId].slice(-10);
     }
-    
-    // Create a conversation with Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const chat = model.startChat({
-      history: conversations[userId],
-      generationConfig: {
-        maxOutputTokens: 800,
-      },
-    });
-    
-    // Generate response
-    const result = await chat.sendMessage(userMessage);
-    const response = result.response.text();
-    
-    // Add AI response to conversation history
-    conversations[userId].push({ role: 'model', parts: [response] });
     
     return response;
   } catch (error) {
@@ -62,91 +56,71 @@ async function generateAIResponse(userMessage, userId) {
   }
 }
 
-// Function to send message using WhatsApp Cloud API
-async function sendWhatsAppMessage(phoneNumberId, to, message) {
-  try {
-    await axios({
-      method: 'POST',
-      url: `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-      headers: {
-        'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: to,
-        type: 'text',
-        text: {
-          body: message
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error sending WhatsApp message:', error.response?.data || error.message);
-  }
-}
+// Handle /start command
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(
+    chatId,
+    "👋 Hello! I'm your Gemini AI assistant. Ask me anything, and I'll do my best to help you!"
+  );
+});
 
-// Webhook verification endpoint for WhatsApp
-app.get('/webhook', (req, res) => {
-  // Parse params from the webhook verification request
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+// Handle /help command
+bot.onText(/\/help/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(
+    chatId,
+    "Here's how to use this bot:\n\n" +
+    "- Simply send me any message and I'll respond with AI-powered answers\n" +
+    "- I can help with information, creative writing, problem-solving, and more\n" +
+    "- I maintain conversation context, so you can ask follow-up questions\n\n" +
+    "Commands:\n" +
+    "/start - Start the bot\n" +
+    "/help - Show this help message\n" +
+    "/reset - Reset our conversation history"
+  );
+});
 
-  // Check if a token and mode were sent
-  if (mode && token) {
-    // Check the mode and token sent are correct
-    if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
-      // Respond with the challenge token from the request
-      console.log('WEBHOOK_VERIFIED');
-      res.status(200).send(challenge);
-    } else {
-      // Respond with '403 Forbidden' if verify tokens do not match
-      res.sendStatus(403);
-    }
+// Handle /reset command to clear conversation history
+bot.onText(/\/reset/, (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  
+  if (conversations[userId]) {
+    delete conversations[userId];
+    bot.sendMessage(chatId, "Conversation history has been reset. Let's start fresh!");
   } else {
-    res.sendStatus(400);
+    bot.sendMessage(chatId, "No conversation history to reset. Let's chat!");
   }
 });
 
-// Webhook for WhatsApp messages
-app.post('/webhook', async (req, res) => {
+// Handle all other messages
+bot.on('message', async (msg) => {
+  // Skip if it's a command
+  if (msg.text && msg.text.startsWith('/')) return;
+  
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  const userMessage = msg.text;
+  
+  // Send typing action to show the bot is processing
+  bot.sendChatAction(chatId, 'typing');
+  
   try {
-    // Return a '200 OK' response to all requests
-    res.status(200).send('EVENT_RECEIVED');
+    // Get response from Gemini
+    const aiResponse = await generateAIResponse(userMessage, userId);
     
-    const body = req.body;
-    
-    // Check if this is a WhatsApp message
-    if (body.object && 
-        body.entry && 
-        body.entry[0].changes && 
-        body.entry[0].changes[0].value.messages && 
-        body.entry[0].changes[0].value.messages[0]) {
-      
-      const phoneNumberId = body.entry[0].changes[0].value.metadata.phone_number_id;
-      const from = body.entry[0].changes[0].value.messages[0].from; // Extract the phone number from which the message originated
-      const msgBody = body.entry[0].changes[0].value.messages[0].text.body; // Extract the message text
-      
-      // Generate AI response
-      const aiResponse = await generateAIResponse(msgBody, from);
-      
-      // Send response back via WhatsApp
-      await sendWhatsAppMessage(phoneNumberId, from, aiResponse);
-    }
+    // Send the response
+    bot.sendMessage(chatId, aiResponse);
   } catch (error) {
     console.error('Error processing message:', error);
+    bot.sendMessage(chatId, "Sorry, I encountered an error. Please try again later.");
   }
 });
 
-// Health check endpoint
-app.get('/', (req, res) => {
-  res.status(200).send('WhatsApp Gemini AI Bot is running!');
+// Handle errors
+bot.on('polling_error', (error) => {
+  console.error('Polling error:', error);
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+console.log('Telegram Gemini AI bot is running!');

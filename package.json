@@ -1,26 +1,32 @@
 {
-  "name": "whatsapp_chatbot_project",
+  "name": "telegram-gemini-bot",
   "version": "1.0.0",
-  "description": "This repository serves as tools for whatsapp chatbot",
-  "main": "index.js",
+  "description": "A Telegram chatbot powered by Google's Gemini AI",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fahmizainal17/Whatsapp_Chatbot_Project.git"
-  },
-  "keywords": [],
+  "keywords": [
+    "telegram",
+    "bot",
+    "chatbot",
+    "ai",
+    "gemini",
+    "google"
+  ],
   "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/fahmizainal17/Whatsapp_Chatbot_Project/issues"
-  },
-  "homepage": "https://github.com/fahmizainal17/Whatsapp_Chatbot_Project#readme",
+  "license": "MIT",
   "dependencies": {
-    "@google/generative-ai": "^0.23.0",
-    "axios": "^1.8.1",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "@google/generative-ai": "^0.1.3",
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.64.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
