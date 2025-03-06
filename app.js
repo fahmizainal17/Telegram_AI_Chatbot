@@ -54,6 +54,10 @@ async function generateAIResponse(userMessage, userId) {
     }
 
     return responseText;
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    return "Sorry, I couldn't process that. Can you try asking again?";
+  }
 }
 
 bot.onText(/\/start/, (msg) => {
