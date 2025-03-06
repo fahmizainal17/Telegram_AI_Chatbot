@@ -1,0 +1,26 @@
+{
+  "name": "whatsapp_chatbot_project",
+  "version": "1.0.0",
+  "description": "This repository serves as tools for whatsapp chatbot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fahmizainal17/Whatsapp_Chatbot_Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fahmizainal17/Whatsapp_Chatbot_Project/issues"
+  },
+  "homepage": "https://github.com/fahmizainal17/Whatsapp_Chatbot_Project#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.23.0",
+    "axios": "^1.8.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
