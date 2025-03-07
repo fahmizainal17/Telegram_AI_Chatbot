@@ -16,15 +16,6 @@
  * - TELEGRAM_BOT_TOKEN: Your Telegram Bot API token.
  * - GEMINI_API_KEY: Your Gemini AI API key.
  */
-const http = require('http');
-const port = process.env.PORT || 7860;
-
-http.createServer((req, res) => {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.end('Bot is running.\n');
-}).listen(port, () => {
-  console.log(`HTTP server is listening on port ${port}`);
-});
 
 const TelegramBot = require('node-telegram-bot-api');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
