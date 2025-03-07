@@ -105,7 +105,7 @@ const landingPageHTML = `
         }
         .profile-pic {
             width: 100px;
-            height: 100px;
+            height: 140px;
             border-radius: 10px;
             object-fit: cover;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -189,7 +189,7 @@ const landingPageHTML = `
         }
         @media (max-width: 600px) {
             .features {
-                grid-template-columns: 1fr;
+                grid-template-columns: 889fr;
             }
             .header-container {
                 flex-direction: column;
