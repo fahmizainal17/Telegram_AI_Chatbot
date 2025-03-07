@@ -1,0 +1,7 @@
+name = "telegram-ai-chatbot-project"
+main = "app.js"
+compatibility_date = "2023-10-30"
+node_compat = true
+
+[env.production]
+workers_dev = true
