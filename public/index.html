@@ -11,9 +11,6 @@
             background-color: #f5f5f5;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
             color: #333;
         }
@@ -24,14 +21,34 @@
             padding: 30px;
             max-width: 800px;
             width: 90%;
+            margin: 50px auto;
         }
-        header {
-            text-align: center;
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
+        }
+        .logo-title {
+            display: flex;
+            align-items: center;
+        }
+        .telegram-logo {
+            width: 100px;
+            height: auto;
+            margin-right: 20px;
+        }
+        .profile-pic {
+            width: 100px;
+            height: 100px;
+            border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         h1 {
             color: #0088cc;
-            margin-bottom: 10px;
+            margin: 0;
+            font-size: 28px;
         }
         .status {
             color: #4CAF50;
@@ -45,12 +62,6 @@
         .description {
             line-height: 1.6;
             margin-bottom: 25px;
-        }
-        .telegram-logo {
-            width: 80px;
-            height: 80px;
-            margin: 10px auto;
-            display: block;
         }
         .features {
             margin: 30px 0;
@@ -115,17 +126,30 @@
             .features {
                 grid-template-columns: 1fr;
             }
+            .header-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            .logo-title {
+                flex-direction: column;
+                margin-bottom: 20px;
+            }
+            .telegram-logo {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="telegram-logo">
-                <img src="/images/tele_robo_chatbot.png" alt="Telegram Bot Logo" style="width: 120px; height: auto;">
+        <div class="header-container">
+            <div class="logo-title">
+                <img src="/images/tele_robo_chatbot.png" alt="Telegram Bot Logo" class="telegram-logo">
+                <h1>Telegram AI Chatbot</h1>
             </div>
-            <h1>Telegram AI Chatbot</h1>
-        </header>
+            <img src="/images/standup_profile_pic.jpg" alt="Bot Profile" class="profile-pic">
+        </div>
         
         <div class="status">Service Active and Running</div>
         
@@ -160,10 +184,6 @@
         
         <div class="cta">
             <a href="https://t.me/FZ_ChatBot" class="cta-button" target="_blank">Chat with FZ_ChatBot</a>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-            <img src="/images/standup_profile_pic.jpg" alt="Bot Profile" style="max-width: 200px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
         </div>
         
         <div class="footer">
