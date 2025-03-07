@@ -1,225 +1,133 @@
 /**
- * Telegram AI Chatbot Cloudflare Worker
- * 
- * This worker serves a simple landing page and processes Telegram webhook requests.
- * It integrates with Google's Gemini AI to provide AI-powered responses to users.
- * 
- * Features:
- * - Simple landing page for visitors to your worker URL
- * - Webhook integration with Telegram Bot API
- * - Command processing (/start, /help, /reset)
- * - AI responses using Google's Gemini API
- * 
- * Setup:
- * 1. Deploy this worker to Cloudflare
- * 2. Set environment variables for TELEGRAM_BOT_TOKEN and GEMINI_API_KEY
- * 3. Register the webhook with Telegram by visiting:
- *    https://api.telegram.org/bot{YOUR_TOKEN}/setWebhook?url=https://your-worker-url.workers.dev/webhook
- * 
+ * Telegram AI Chatbot
+ *
+ * This script creates a Telegram chatbot powered by Google's Gemini AI (gemini-2.0-flash).
+ * It listens for user messages, handles basic commands (/start, /help, /reset),
+ * and manages multi-turn conversations by maintaining a history of interactions.
+ *
+ * Workflow:
+ * 1. Initializes the Telegram bot and Gemini AI client.
+ * 2. Defines command handlers to provide a friendly interaction experience.
+ * 3. Stores conversation history temporarily in memory to maintain context.
+ * 4. Responds naturally by generating an AI response from Gemini.
+ * 5. Catches and handles errors gracefully.
+ *
  * Environment Variables:
- * - TELEGRAM_BOT_TOKEN: Your Telegram Bot API token from BotFather
- * - GEMINI_API_KEY: Your Google Gemini API key
+ * - TELEGRAM_BOT_TOKEN: Your Telegram Bot API token.
+ * - GEMINI_API_KEY: Your Gemini AI API key.
  */
+const http = require('http');
+const port = process.env.PORT || 7860;
 
-// Main worker export - handles all HTTP requests
-export default {
-  /**
-   * Main request handler for the Cloudflare Worker
-   * 
-   * Routes requests to either the landing page or webhook handler
-   * based on the URL path and request method.
-   * 
-   * @param {Request} request - The incoming HTTP request
-   * @param {Object} env - Environment variables and bindings
-   * @param {Object} ctx - Execution context
-   * @returns {Response} - HTTP response
-   */
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    
-    // If this is a webhook request from Telegram
-    if (url.pathname === '/webhook' && request.method === 'POST') {
-      return handleTelegramWebhook(request, env);
-    }
-    
-    // For all other requests, show the landing page
-    return new Response(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Telegram AI Chatbot</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-          }
-          .container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            text-align: center;
-          }
-          h1 {
-            color: #0088cc;
-          }
-          .status {
-            color: #4CAF50;
-            font-weight: bold;
-            margin: 20px 0;
-          }
-          .button {
-            background-color: #0088cc;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 20px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>Telegram AI Chatbot</h1>
-          <div class="status">Service Active and Running</div>
-          <p>This is an AI-powered chatbot using Google's Gemini AI model.</p>
-          <a href="https://t.me/FZ_ChatBot" class="button">Chat with FZ_ChatBot</a>
-        </div>
-      </body>
-      </html>
-    `, {
-      headers: { 'Content-Type': 'text/html' }
-    });
-  }
-};
+http.createServer((req, res) => {
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('Bot is running.\n');
+}).listen(port, () => {
+  console.log(`HTTP server is listening on port ${port}`);
+});
 
-/**
- * Handle Telegram webhook requests
- * 
- * Processes incoming messages from Telegram, handles commands,
- * and generates AI responses using the Gemini API.
- * 
- * @param {Request} request - The incoming webhook request from Telegram
- * @param {Object} env - Environment variables including API tokens
- * @returns {Response} - Response to the webhook request
- */
-async function handleTelegramWebhook(request, env) {
+const TelegramBot = require('node-telegram-bot-api');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
+
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// To store conversation history in memory:
+const conversations = {};
+
+async function generateAIResponse(userMessage, userId) {
   try {
-    // Get the Telegram token from environment variables
-    const telegramToken = env.TELEGRAM_BOT_TOKEN;
-    const geminiApiKey = env.GEMINI_API_KEY;
-    
-    if (!telegramToken || !geminiApiKey) {
-      return new Response('Missing API tokens', { status: 500 });
+    // Initialize conversation if it doesn't exist yet
+    if (!conversations[userId]) conversations[userId] = [];
+
+    // Use the Gemini model
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Include a friendly prompt style, without fancy formatting
+    const friendlyPrompt = 
+      "Please reply in a casual, friendly, and conversational style without using markdown, bold formatting, or bullet points. " +
+      "Make your reply sound natural and human-like.\n\n" + 
+      userMessage;
+
+    let responseText;
+
+    // If we have conversation history, continue the chat
+    if (conversations[userId].length > 0) {
+      const chat = model.startChat({ history: conversations[userId] });
+      const result = await chat.sendMessage(friendlyPrompt);
+      responseText = result.response.text();
+    } else {
+      // Otherwise, just do a single-shot generation
+      const result = await model.generateContent(friendlyPrompt);
+      responseText = result.response.text();
     }
-    
-    // Parse the incoming webhook data
-    const update = await request.json();
-    
-    // Only process messages with text
-    if (!update.message || !update.message.text) {
-      return new Response('OK');
+
+    // Push user message and AI response to memory
+    conversations[userId].push({ role: 'user', parts: [{ text: userMessage }] });
+    conversations[userId].push({ role: 'model', parts: [{ text: responseText }] });
+
+    // Limit conversation history to the last 20 entries
+    if (conversations[userId].length > 20) {
+      conversations[userId] = conversations[userId].slice(-20);
     }
-    
-    const chatId = update.message.chat.id;
-    const messageText = update.message.text;
-    
-    // Get or create conversation context for this user
-    const userId = update.message.from.id.toString();
-    
-    // Process commands
-    if (messageText.startsWith('/')) {
-      let responseText = '';
-      
-      if (messageText === '/start') {
-        responseText = "Hey there! I'm your friendly AI assistant. Feel free to ask me anything!";
-      } else if (messageText === '/help') {
-        responseText = "Just send me any message, and we'll chat!\nYou can also use these commands:\n/start - Let's begin chatting\n/help - Need a hand?\n/reset - Clear our previous chats";
-      } else if (messageText === '/reset') {
-        // Reset conversation would go here if we had KV storage
-        responseText = "Alright, I've cleared our chat history. Let's chat anew!";
-      } else {
-        responseText = "I don't recognize that command. Try /help for a list of commands.";
-      }
-      
-      // Send the response back to the user
-      await sendTelegramMessage(telegramToken, chatId, responseText);
-      return new Response('OK');
-    }
-    
-    // Generate an AI response
-    try {
-      // Call the Gemini API
-      const result = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: "Please reply in a casual, friendly, and conversational style without using markdown, bold formatting, or bullet points. Make your reply sound natural and human-like.\n\n" + messageText
-            }]
-          }]
-        })
-      });
-      
-      const data = await result.json();
-      let responseText = "Sorry, I couldn't process that. Can you try asking again?";
-      
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        responseText = data.candidates[0].content.parts[0].text;
-      }
-      
-      // Send the AI response back to the user
-      await sendTelegramMessage(telegramToken, chatId, responseText);
-    } catch (error) {
-      console.error('Error generating AI response:', error);
-      await sendTelegramMessage(telegramToken, chatId, "Sorry, I encountered an error. Please try again later.");
-    }
-    
-    return new Response('OK');
+
+    return responseText;
   } catch (error) {
-    console.error('Webhook error:', error);
-    return new Response('Error processing webhook', { status: 500 });
+    console.error('Error generating AI response:', error);
+    return "Sorry, I couldn't process that. Can you try asking again?";
   }
 }
 
-/**
- * Send a message to a Telegram user
- * 
- * Makes an API call to the Telegram Bot API to send a text message.
- * 
- * @param {string} token - The Telegram Bot API token
- * @param {string|number} chatId - The chat ID to send the message to
- * @param {string} text - The message text to send
- * @returns {Promise<Object>} - The Telegram API response
- */
-async function sendTelegramMessage(token, chatId, text) {
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text
-    })
-  });
-  
-  return response.json();
-}
+// Start command
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    "Hey there! I'm your friendly AI assistant. Feel free to ask me anything!"
+  );
+});
+
+// Help command
+bot.onText(/\/help/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    "Just send me any message, and we'll chat!\n" +
+    "You can also use these commands:\n" +
+    "/start - Let's begin chatting\n" +
+    "/help - Need a hand?\n" +
+    "/reset - Clear our previous chats"
+  );
+});
+
+// Reset command
+bot.onText(/\/reset/, (msg) => {
+  const userId = msg.from.id.toString();
+  delete conversations[userId];
+  bot.sendMessage(msg.chat.id, "Alright, I've cleared our chat history. Let's chat anew!");
+});
+
+// Handle normal messages
+bot.on('message', async (msg) => {
+  // Ignore commands
+  if (msg.text && msg.text.startsWith('/')) return;
+
+  const chatId = msg.chat.id;
+  const userId = msg.from.id.toString();
+  const userMessage = msg.text;
+
+  // Show typing action, but don’t send a "thinking" message
+  bot.sendChatAction(chatId, 'typing');
+
+  try {
+    const aiResponse = await generateAIResponse(userMessage, userId);
+    bot.sendMessage(chatId, aiResponse);
+  } catch (error) {
+    console.error('Oops, encountered an issue:', error);
+    bot.sendMessage(chatId, "Oops, something went wrong. Mind trying again?");
+  }
+});
+
+// Polling errors
+bot.on('polling_error', (error) => console.error('Polling error:', error));
+
+console.log('Telegram AI Chatbot is now happily chatting!');
